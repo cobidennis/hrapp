@@ -7,6 +7,8 @@ pipeline {
         stage('Download Code from GHub') {
             steps {
                 sh '''
+                    mkdir workspace
+                    cd workspace
                     git clone https://github.com/cobidennis/hrapp.git
                     git clone https://github.com/cobidennis/hrapp-nodes-config.git
                 '''
@@ -16,7 +18,7 @@ pipeline {
         stage ('Build Image') {
             steps {
                 sh '''
-                    cd hrapp
+                    cd workspace/hrapp
                     docker build -t cobidennis/hrapp:$version .
                     docker tag cobidennis/hrapp:$version cobidennis/hrapp:release
                 '''
@@ -45,16 +47,19 @@ pipeline {
                 script {
                     def s3Bucket = 'dobee-buckets'
                     def hrappEnv = 'devops-training/terraform/hr-app/hrapp.yml'
-                    def localFilePath = 'hrapp-nodes-config/ansible/env_files'
+                    def keyFile = 'keys/DobeeP53.pem'
+                    def envFilePath = 'workspace/hrapp-nodes-config/ansible/env_files'
 
-                    sh "aws s3 cp s3://${s3Bucket}/${hrappEnv} ${localFilePath}"
+                    sh "aws s3 cp s3://${s3Bucket}/${hrappEnv} ${envFilePath}"
+                    sh "aws s3 cp s3://${s3Bucket}/${keyFile} workspace"
 
-                    def hrappEnvExists = fileExists("${localFilePath}/hrapp.yml")
+                    def hrappEnvExists = fileExists("${envFilePath}/hrapp.yml")
+                    def keyFileExists = fileExists("workspace/DobeeP53.pem")
 
-                    if (hrappEnvExists) {
-                        echo "HR App Env File Exists. Proceeding to the next stage."
+                    if (hrappEnvExists && keyFileExists) {
+                        echo "HR App Env and Key File Exists. Proceeding to the next stage."
                     } else {
-                        error "HR App Env File Not Found. Aborting the pipeline."
+                        error "HR App Env/Key File Not Found. Aborting the pipeline."
                     }
                 }
             }
@@ -62,13 +67,13 @@ pipeline {
         stage ('Ansible: Deploy Apps and Monitoring System') {
             when {
                 expression {
-                    return hrappEnvExists
+                    return hrappEnvExists && keyFileExists
                 }
             }
             steps {
                 sh '''
-                    cd hrapp-nodes-config/ansible
-                    ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook -e @/tmp/hrapp.yml -i /tmp/inventory.ini  playbook.yml --key-file /tmp/DobeeP53.pem -u ec2-user
+                    cd workspace/hrapp-nodes-config/ansible
+                    ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook -e @./env_files/hrapp.yml -i inventory.ini  playbook-app.yml --key-file ../../DobeeP53.pem -u ec2-user
                 '''
             }
         }
