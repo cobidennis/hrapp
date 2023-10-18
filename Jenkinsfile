@@ -1,7 +1,9 @@
 pipeline {
     agent any
     environment {
-        version = 'V1'
+        version = 'latest'
+        AWS_ACCESS_KEY_ID = credentials ('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials ('AWS_SECRET_ACCESS_KEY')
     }
     stages {
         stage('Download Code from GHub') {
@@ -58,6 +60,7 @@ pipeline {
 
                     if (hrappEnvExists && keyFileExists) {
                         echo "HR App Env and Key File Exists. Proceeding to the next stage."
+                        sh "chmod 400 workspace/DobeeP53.pem"
                     } else {
                         error "HR App Env/Key File Not Found. Aborting the pipeline."
                     }
