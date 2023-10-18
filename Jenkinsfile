@@ -53,8 +53,8 @@ pipeline {
                     sh "aws s3 cp s3://${s3Bucket}/${hrappEnv} ${envFilePath}"
                     sh "aws s3 cp s3://${s3Bucket}/${keyFile} workspace"
 
-                    def hrappEnvExists = fileExists("${envFilePath}/hrapp.yml")
-                    def keyFileExists = fileExists("workspace/DobeeP53.pem")
+                    hrappEnvExists = fileExists("${envFilePath}/hrapp.yml")
+                    keyFileExists = fileExists("workspace/DobeeP53.pem")
 
                     if (hrappEnvExists && keyFileExists) {
                         echo "HR App Env and Key File Exists. Proceeding to the next stage."
